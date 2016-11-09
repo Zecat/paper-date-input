@@ -1,0 +1,411 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-input/iron-input.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../moment-element/moment-import.html">
+<link rel="import" href="../iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
+<link rel="import" href="../iron-form-element-behavior/iron-form-element-behavior.html">
+
+<!--
+`paper-date-input`
+A single-line text field for entering a date, with smart autocompletion and focus.
+
+@demo demo/index.html 
+-->
+
+
+<dom-module id="paper-date-input">
+  <template>
+
+    <style>
+      :host {
+        display: inline-block;
+      }
+      :host([hidden]) {
+        display: none !important;
+      }
+      input[is="iron-input"] {
+        font: inherit;
+        outline: none;
+        box-shadow: none;
+        border: none;
+        width: auto;
+        text-align: center;
+      }
+      input:not(:focus) {
+        cursor: pointer;
+      }
+      .container {
+        @apply(--layout-horizontal);
+      }
+      .delimeter {
+        @apply(--paper-date-input-delimeter);
+        cursor: default;
+      }
+    </style>
+
+    <paper-input-container always-float-label attr-for-value="value" disabled$="[[disabled]]">
+
+      <label>[[label]]</label>
+
+      <div class="container">
+
+        <input id="input0" is="iron-input" on-focus="_focusHandler" allowed-pattern="[0-9]" prevent-invalid-input>
+        <span class="delimeter">[[delimeter]]</span>
+        <input id="input1" is="iron-input" on-focus="_focusHandler" allowed-pattern="[0-9]" prevent-invalid-input>
+        <span class="delimeter">[[delimeter]]</span>
+        <input id="input2" is="iron-input" on-focus="_focusHandler" allowed-pattern="[0-9]" prevent-invalid-input>
+
+      </div>
+
+    </paper-input-container>
+
+  </template>
+</dom-module>
+
+<script>
+  Polymer({
+    is: 'paper-date-input',
+
+    properties: {
+      disabled: {
+        type: Boolean,
+        value: false
+      },
+      day: {
+        type: String,
+        notify: true
+      },
+      month: {
+        type: String,
+        notify: true
+      },
+      year: {
+        type: String,
+        notify: true
+      },
+      delimeter: {
+        type: String,
+        value: '/'
+      },
+      inputFormat: {
+        type: String,
+        value: 'MM-DD-YYYY'
+      },
+      valueFormat: {
+        type: String,
+        value: 'MM-DD-YYYY'
+      },
+      monthPlaceholder: {
+        type: String,
+        value: ''
+      },
+      dayPlaceholder: {
+        type: String,
+        value: ''
+      },
+      yearPlaceholder: {
+        type: String,
+        value: ''
+      },
+      focusSkipperDisabled: {
+        type: Boolean,
+        value: false
+      },
+      _dayInput: {
+        type: Object
+      },
+      _monthInput: {
+        type: Object
+      },
+      _yearInput: {
+        type: Object
+      }
+    },
+
+    listeners: {
+      'bind-value-changed': '_bindValueChanged',
+      'focusout': '_focusOutHandler',
+      'focus': '_focusHandler'
+    },
+
+    behaviors: [
+      Polymer.IronA11yKeysBehavior,
+      Polymer.IronFormElementBehavior
+    ],
+
+    observers: [
+      '_resetLayout(_dayInput, _monthInput, _yearInput)',
+      '_updateValue(day, month, year, valueFormat)',
+      '_valueChanged(value, valueFormat)',
+      '_dayChanged(day)',
+      '_monthChanged(month)',
+      '_yearChanged(year)',
+      '_inputFormatChanged(inputFormat)',
+      '_updateDayPlaceholder(_dayInput, dayPlaceholder)',
+      '_updateMonthPlaceholder(_monthInput, monthPlaceholder)',
+      '_updateYearPlaceholder(_yearInput, yearPlaceholder)',
+    ],
+
+    keyBindings: {
+      'down:keydown': '_downPressed',
+      'up:keydown': '_upPressed'
+    },
+
+    _focusedInput: null,
+    _focusedInputIndex: null,
+    _preventValueUpdate: false,
+    _preventFieldsUpdate: false,
+
+    _focusHandler: function(e) {
+      var focusedInput = Polymer.dom(e).rootTarget;
+      var focusedInputId = focusedInput.id;
+      this._focusedInput = focusedInput;
+      this._focusedInputIndex = focusedInputId[focusedInputId.length-1];
+      focusedInput.select();
+    },
+
+    _focusOutHandler: function(e) {
+      Polymer.dom(e).rootTarget._autocomplete();
+    },
+
+    _bindValueChanged: function(e) {
+      Polymer.dom(e).rootTarget._updateAssociateField(e.detail.value);
+    },
+
+    _downPressed: function(e) {
+      e.preventDefault();
+      var oldFocusSkipperDisabled = this.focusSkipperDisabled;
+      this.focusSkipperDisabled = true;
+      this._focusedInput._decrement();
+      this._focusedInput.select();
+      this.focusSkipperDisabled = oldFocusSkipperDisabled;
+    },
+
+    _upPressed: function(e) {
+      e.preventDefault();
+      var oldFocusSkipperDisabled = this.focusSkipperDisabled;
+      this.focusSkipperDisabled = true;
+      this._focusedInput._increment();
+      this._focusedInput.select();
+      this.focusSkipperDisabled = oldFocusSkipperDisabled;
+    },
+
+    _incrementDay: function() {
+      var day = parseInt(this.day, 10) + 1 || 1;
+      var endOfMonthDate = this.endOfMonthDate;
+      if (day > endOfMonthDate) {
+        day -= endOfMonthDate;
+      }
+      this.day = day;
+      this._autocompleteDay();
+    },
+
+    _decrementDay: function() {
+      var day = parseInt(this.day, 10) - 1 || this.endOfMonthDate;
+      if (day < 1) {
+        day += this.endOfMonthDate;
+      }
+      this.day = day;
+      this._autocompleteDay();
+    },
+
+    _incrementMonth: function() {
+      var month = parseInt(this.month, 10) + 1 || 1;
+      if (month > 12) {
+        month -= 12;
+      }
+      this.month = month;
+      this._autocompleteMonth();
+    },
+
+    _decrementMonth: function() {
+      var month = parseInt(this.month, 10) - 1 || 12;
+      if (month < 1) {
+        month += 12;
+      }
+      this.month = month;
+      this._autocompleteMonth();
+    },
+
+    _incrementYear: function() {
+      this.year = String(parseInt(this.year)+1);
+    },
+
+    _decrementYear: function() {
+      this.year = String(parseInt(this.year)-1);
+    },
+
+    _updateValue: function(day, month, year, valueFormat) {
+      if (!this._preventValueUpdate && day[1] && month[1] && year[3]) {
+        this._preventFieldsUpdate = true;
+        var date = moment({ year: year, month: parseInt(month, 10)-1, day: day});
+        this.value = date.isValid() ? date.format(valueFormat) : null;
+        this._preventFieldsUpdate = false;
+      }
+    },
+
+    _autocompleteDay: function() {
+      if (this.day && this.day[0] !== '0' && this.day < 10) {
+        this.day = '0' + this.day;
+      }
+    },
+
+    _autocompleteMonth: function() {
+      if (this.month && this.month[0] !== '0' && this.month < 10) {
+        this.month = '0' + this.month;
+      }
+    },
+
+    _autocompleteYear: function() {
+
+    },
+
+    _selectNextEmptyField: function() {
+      for (i=1; i<4; i++) {
+        if (this.$['input'+(i+this._focusedInputIndex)%3].value == '') {
+          this.$['input'+(i+this._focusedInputIndex)%3].focus();
+          return;
+        }
+      }
+    },
+
+    get endOfMonthDate() {
+      return this.month ? ( this.month === 2 ? 28 + this.isLeapYear : 31 - (this.month - 1) % 7 % 2 ) : 31;
+    },
+
+    get isLeapYear() {
+      return this.year ? ((this.year % 4) || ((this.year % 100 === 0) && (this.year % 400)) ? 0 : 1) : undefined;
+    },
+
+    _dayChanged: function(day) {
+      var isFocused = this._focusedInput === this._dayInput;
+      if (day > 9) {
+        this.day = String(Math.min(this.day, this.endOfMonthDate));
+      } else if (day == '00' || day < 0) {
+        this.day = '01';
+      } else if (isNaN(day[1]) && (!isFocused || day > 3 && this._dayInput.selectionStart != 0)){
+        this.day = '0' + day;
+      }
+      this._dayInput.bindValue = this.day;
+      if (isFocused && day[1] && !this.focusSkipperDisabled) {
+        this._selectNextEmptyField();
+      }
+    },
+
+    _monthChanged: function(month) {
+      var isFocused = this._focusedInput === this._monthInput;
+      if (month > 9) {
+        this.month = String(Math.min(this.month, 12));
+      } else if (month == '00' || month < 0) {
+        this.month = '01';
+      } else if (isNaN(month[1]) && (!isFocused || month > 1 && this._monthInput.selectionStart != 0)) {
+        this.month = '0' + month;
+      }
+      this._monthInput.bindValue = this.month;
+      if (isFocused && month[1] && !this.focusSkipperDisabled) {
+        this._selectNextEmptyField();
+      }
+    },
+
+    _yearChanged: function(year) {
+      var isFocused = this._focusedInput === this._yearInput;
+      this._yearInput.bindValue = year;
+      if (isFocused && year[3] && !this.focusSkipperDisabled) {
+        this._selectNextEmptyField();
+      }
+    },
+
+    _valueChanged: function(value, valueFormat) {
+      if (!this._preventFieldsUpdate && moment(value, valueFormat, true).isValid()) {
+        this._preventValueUpdate = true;
+        var date = moment(value, valueFormat);
+        this.day = date.format('DD');
+        this.month = date.format('MM');
+        this.year = date.format('YYYY');
+        this._preventValueUpdate = false;
+      }
+    },
+
+    _updateDayPlaceholder: function(dayInput, dayPlaceholder) {
+      dayInput.placeholder = dayPlaceholder;
+    },
+
+    _updateMonthPlaceholder: function(monthInput, monthPlaceholder) {
+      monthInput.placeholder = monthPlaceholder;
+    },
+
+    _updateYearPlaceholder: function(yearInput, yearPlaceholder) {
+      yearInput.placeholder = yearPlaceholder;
+    },
+
+    _resetLayout: function(dayInput, monthInput, yearInput) {
+      monthInput.setAttribute('maxlength', '2');
+      monthInput.setAttribute('size', '2');
+      monthInput.setAttribute('aria-label', 'Month');
+      monthInput._updateAssociateField = function(value) {
+        this.month = value;
+      }.bind(this);
+      monthInput._autocomplete = this._autocompleteMonth.bind(this);
+      monthInput._increment = this._incrementMonth.bind(this);
+      monthInput._decrement = this._decrementMonth.bind(this);
+      monthInput.bindValue = this.month;
+
+      dayInput.setAttribute('maxlength', '2');
+      dayInput.setAttribute('size', '2');
+      dayInput.setAttribute('aria-label', 'Day');
+      dayInput._updateAssociateField = function(value) {
+        this.day = value;
+      }.bind(this);
+      dayInput._autocomplete = this._autocompleteDay.bind(this);
+      dayInput._increment = this._incrementDay.bind(this);
+      dayInput._decrement = this._decrementDay.bind(this);
+      dayInput.bindValue = this.day;
+
+      yearInput.setAttribute('maxlength', '4');
+      yearInput.setAttribute('size', '4');
+      yearInput.setAttribute('aria-label', 'Year');
+      yearInput._updateAssociateField = function(value) {
+        this.year = value;
+      }.bind(this);
+      yearInput._autocomplete = this._autocompleteYear.bind(this);
+      yearInput._increment = this._incrementYear.bind(this);
+      yearInput._decrement = this._decrementYear.bind(this);
+      yearInput.bindValue = this.year;
+    },
+
+    _inputFormatChanged: function(format) {
+      var formatArray = format.split('-');
+
+      notifyInvalidFormat = function() {
+        console.warn('Invalid value format');
+        this.format = 'MM-DD-YYYY';
+        return;
+      };
+
+      if (formatArray.length != 3) {
+        notifyInvalidFormat()
+        return;
+      }
+
+      var monthDone = false;
+      var dayDone = false;
+      var yearDone = false;
+
+      for (i in formatArray) {
+        if (formatArray[i] === 'MM' && !monthDone) {
+          this._monthInput = this.$['input'+i];
+          monthDone = true;
+        } else if (formatArray[i] === 'DD' && !dayDone) {
+          this._dayInput = this.$['input'+i];
+          dayDone = true;
+        } else if (formatArray[i] === 'YYYY' && !yearDone) {
+          this._yearInput = this.$['input'+i];
+          yearDone = true;
+        } else {
+          notifyInvalidFormat();
+        }
+      }
+    }
+    
+  });
+</script>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+  <head>
+    <title>paper-date-input demo</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=yes">
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+
+    <link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
+    <link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+    <link rel="import" href="../../iron-flex-layout/iron-flex-layout.html">
+    <link rel="import" href="../../paper-input/paper-input-container.html">
+    <link rel="import" href="../../paper-dropdown-menu/paper-dropdown-menu.html">
+    <link rel="import" href="../../paper-item/paper-item.html">
+    <link rel="import" href="../../paper-listbox/paper-listbox.html">
+
+    <link rel="import" href="../paper-date-input.html">
+
+    <style is="custom-style" include="demo-pages-shared-styles">
+      demo-snippet {
+        --demo-snippet-demo: {
+          @apply(--layout-vertical);
+        };
+      }
+    </style>
+  </head>
+  <body>
+
+    <div class="vertical-section-container centered">
+      <h3>Basic paper-date-input Demo</h3>
+      <demo-snippet>
+        <template is="dom-bind" id="scope1">
+          <div>
+
+            <paper-date-input label="Date" month="1" day="2" year="2222" value="{{value}}" delimeter="[[delimeter]]" input-format="[[inputFormat]]" value-format="[[valueFormat]]"></paper-date-input>
+
+            <div>value: [[value]]</div>
+          </div>
+          <paper-input style="width:70px" label="Delimiter" value="{{delimeter}}"></paper-input>
+          <paper-dropdown-menu label="Input format">
+            <paper-listbox class="dropdown-content" selected="{{inputFormat}}" fallback-selection="MM-DD-YYYY" attr-for-selected="format">
+              <paper-item format="MM-DD-YYYY">MM-DD-YYYY</paper-item>
+              <paper-item format="DD-MM-YYYY">DD-MM-YYYY</paper-item>
+              <paper-item format="YYYY-MM-DD">YYYY-MM-DD</paper-item>
+              <paper-item format="YYYY-DD-MM">YYYY-DD-MM</paper-item>
+            </paper-listbox>
+          </paper-dropdown-menu>
+
+          <paper-input label="Value format" value="{{valueFormat}}"></paper-input>
+          <div>value-format refers to momentJs, <a href="http://momentjs.com/docs/#/displaying/format/" target="_blank">see allowed format</a>.</div>
+
+        </template>
+        <script>
+          var scope1 = document.getElementById('scope1');
+          scope1.valueFormat = "dddd, MMMM Do YYYY";
+          scope1.delimeter = "/";
+        </script>
+      </demo-snippet>
+    </div>
+
+  </body>
+</html>
